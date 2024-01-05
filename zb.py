@@ -55,8 +55,10 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
     nproc = options.threads if options.threads else len(os.sched_getaffinity(0))
     threshold_map = {k: float(v) for k, v in helpers.parse_csv_as_dict(options.thresholds).items()}
     results = thread_map(curry_zerobg(threshold_map), mapper, max_workers=nproc, total=mapper.count(), maxinterval=0.1)
-    if not all(results):
-        sys.exit(1)
+
+    # raise exceptions, if any
+    for _ in results:
+        pass
 
 
 def curry_zerobg(threshold_map: dict[str, float]) -> Callable[[tuple[Path, Path]], bool]:
