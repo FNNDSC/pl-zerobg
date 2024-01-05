@@ -4,10 +4,10 @@
 FROM docker.io/python:3.12.0-slim-bookworm
 
 LABEL org.opencontainers.image.authors="FNNDSC <dev@babyMRI.org>" \
-      org.opencontainers.image.title="ChRIS Plugin Title" \
-      org.opencontainers.image.description="A ChRIS plugin that..."
+      org.opencontainers.image.title="Zero MRI Background" \
+      org.opencontainers.image.description="Set the background intensity of a MRI to 0"
 
-ARG SRCDIR=/usr/local/src/app
+ARG SRCDIR=/usr/local/src/pl-zerobg
 WORKDIR ${SRCDIR}
 
 COPY requirements.txt .
@@ -19,4 +19,4 @@ RUN pip install ".[${extras_require}]" \
     && cd / && rm -rf ${SRCDIR}
 WORKDIR /
 
-CMD ["commandname"]
+CMD ["zb"]
