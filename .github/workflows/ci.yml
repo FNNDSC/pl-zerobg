@@ -17,27 +17,6 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Unit tests
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Build
-        uses: docker/build-push-action@v5
-        with:
-          build-args: extras_require=dev
-          context: .
-          load: true
-          push: false
-          tags: "localhost/local/app:dev"
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Run pytest
-        run: |
-          docker run -v "$GITHUB_WORKSPACE:/app:ro" -w /app localhost/local/app:dev \
-            pytest -o cache_dir=/tmp/pytest
-
   build:
     name: Build
     if: github.event_name == 'push' || github.event_name == 'release'
@@ -106,34 +85,31 @@ jobs:
       # If you have a directory called examples/incoming/ and examples/outgoing/, then
       # run your ChRIS plugin with no parameters, and assert that it creates all the files
       # which are expected. File contents are not compared.
+      - name: Download example data
+        run: cd examples && ./download.sh incoming
       - name: Run examples
         id: run_examples
         run: |
-          if ! [ -d 'examples/incoming/' ] || ! [ -d 'examples/outgoing/' ]; then
-            echo "No examples."
-            exit 0
-          fi
-        
           dock_image=${{ steps.info.outputs.local_tag }}
           output_dir=$(mktemp -d)
           cmd=$(docker image inspect -f '{{ (index .Config.Cmd 0) }}' $dock_image)
           docker run --rm -u "$(id -u):$(id -g)" \
             -v "$PWD/examples/incoming:/incoming:ro" \
             -v "$output_dir:/outgoing:rw" \
-            $dock_image $cmd /incoming /outgoing
+            $dock_image $cmd --thresholds template.nii.gz:37.0 /incoming /outgoing
           
-          for expected_file in $(find examples/outgoing -type f); do
-            fname="${expected_file##*/}"
-            out_path="$output_dir/$fname"
-            printf "Checking output %s exists..." "$out_path"
-            if [ -f "$out_path" ]; then
-              echo "ok"
-            else
-              echo "not found"
-              exit 1
-            fi
-          done
-
+          set +e
+          diff -q examples/incoming/age34/template.nii.gz $output_dir/age34/template.nii.gz
+          if [ "$?" = "0" ]; then
+            echo "age34/template.nii.gz should have been changed, but it was not."
+            exit 1
+          fi
+          diff -q examples/incoming/age34/mask.nii.gz $output_dir/age34/mask.nii.gz
+          if [ "$?" = "1" ]; then
+            echo "age34/template.nii.gz should have been copied, but it was changed."
+            exit 1
+          fi
+          echo "tests passed"
       - name: Login to DockerHub
         if: (github.event_name == 'push' || github.event_name == 'release') && contains(steps.info.outputs.tags_csv, 'docker.io')
         uses: docker/login-action@v3
@@ -155,7 +131,7 @@ jobs:
           file: ./Dockerfile
           tags: ${{ steps.info.outputs.tags_csv }}
           # if non-x86_84 architectures are supported, add them here
-          platforms: linux/amd64  #,linux/arm64,linux/ppc64le
+          platforms: linux/amd64,linux/arm64,linux/ppc64le
           push: ${{ steps.info.outputs.push }}
           cache-to: type=gha,mode=max
 
