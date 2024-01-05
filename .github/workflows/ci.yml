@@ -97,7 +97,7 @@ jobs:
             -v "$PWD/examples/incoming:/incoming:ro" \
             -v "$output_dir:/outgoing:rw" \
             $dock_image $cmd --thresholds template.nii.gz:37.0 /incoming /outgoing
-          
+
           set +e
           diff -q examples/incoming/age34/template.nii.gz $output_dir/age34/template.nii.gz
           if [ "$?" = "0" ]; then
@@ -105,7 +105,7 @@ jobs:
             exit 1
           fi
           diff -q examples/incoming/age34/mask.nii.gz $output_dir/age34/mask.nii.gz
-          if [ "$?" = "1" ]; then
+          if [ "$?" != "0" ]; then
             echo "age34/template.nii.gz should have been copied, but it was changed."
             exit 1
           fi
